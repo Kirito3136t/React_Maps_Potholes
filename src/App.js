@@ -20,11 +20,18 @@ import {
 } from '@react-google-maps/api'
 import { useRef, useState } from 'react'
 
-const center = { lat: 48.8584, lng: 2.2945 }
+import pothole from '../src/assets/img/pothole.jpg'
+
+const center = { lat: 19.0522, lng: 72.9005 }
+const potholeLocations = [
+  { lat: 19.04141, lng: 72.88975 },
+  { lat: 19.04287622208201, lng:72.89348475176072 }
+  // Add more pothole locations here as needed
+];
 
 function App() {
   const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+    googleMapsApiKey: 'AIzaSyDnyb11tWZluAFYBaG8sEVYpu2L6nwIWPE',
     libraries: ['places'],
   })
 
@@ -32,15 +39,44 @@ function App() {
   const [directionsResponse, setDirectionsResponse] = useState(null)
   const [distance, setDistance] = useState('')
   const [duration, setDuration] = useState('')
+  const [buttonClicked, setButtonClicked] = useState(false);
+  const [generatedPoints, setGeneratedPoints] = useState([]);
+
 
   /** @type React.MutableRefObject<HTMLInputElement> */
   const originRef = useRef()
   /** @type React.MutableRefObject<HTMLInputElement> */
   const destiantionRef = useRef()
 
+  const numRandomPoints = 5; // Specify the number of random points to generate
+
+  // Function to generate random points between the origin and destination
+  function generateRandomPoints(origin, numPoints) {
+    const points = [];
+    for (let i = 0; i < numPoints; i++) {
+      const randomLat = origin.lat + Math.random() * 0.02; // Adjust the range as needed
+      const randomLng = origin.lng + Math.random() * 0.02; // Adjust the range as needed
+      points.push({ lat: randomLat, lng: randomLng });
+    }
+    return points;
+  }
+
   if (!isLoaded) {
     return <SkeletonText />
   }
+
+  const renderPotholeMarkers = () => {
+    return generatedPoints.map((location, index) => (
+      <Marker
+        key={index}
+        position={location}
+        icon={{
+          url: pothole, // Corrected URL format
+          scaledSize: new window.google.maps.Size(30, 30)
+        }}
+      />
+    ));
+  };
 
   async function calculateRoute() {
     if (originRef.current.value === '' || destiantionRef.current.value === '') {
@@ -54,9 +90,21 @@ function App() {
       // eslint-disable-next-line no-undef
       travelMode: google.maps.TravelMode.DRIVING,
     })
+    console.log(results);
     setDirectionsResponse(results)
     setDistance(results.routes[0].legs[0].distance.text)
     setDuration(results.routes[0].legs[0].duration.text)
+    setButtonClicked(true);
+    if (results && results.routes[0] && results.routes[0].legs[0] && results.routes[0].legs[0].start_location) {
+      const newGeneratedPoints = generateRandomPoints({
+        lat: results.routes[0].legs[0].start_location.lat(),
+        lng: results.routes[0].legs[0].start_location.lng(),
+      }, numRandomPoints);
+      setGeneratedPoints(newGeneratedPoints); // Update the state variable
+      console.log(newGeneratedPoints);
+    }
+
+
   }
 
   function clearRoute() {
@@ -65,6 +113,7 @@ function App() {
     setDuration('')
     originRef.current.value = ''
     destiantionRef.current.value = ''
+    setButtonClicked(false)
   }
 
   return (
@@ -93,6 +142,9 @@ function App() {
           {directionsResponse && (
             <DirectionsRenderer directions={directionsResponse} />
           )}
+
+          {/* Add pothole markers to the map */}
+          {buttonClicked && renderPotholeMarkers()}
         </GoogleMap>
       </Box>
       <Box
